@@ -69,7 +69,7 @@ module ExHDownloader
         @current_doc = @agent.get(link)
       rescue OpenSSL::SSL::SSLError => err
         warning("A SSL error has encountered: #{err}, verification will be disabled in next connection!")
-        @agent.http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+        @agent.verify_mode = OpenSSL::SSL::VERIFY_NONE
         @current_doc = @agent.get(link, {ssl_verify_mode: OpenSSL::SSL::VERIFY_NONE})
       end
 
@@ -125,7 +125,7 @@ module ExHDownloader
         @current_doc = @agent.get(@next_link)
       rescue OpenSSL::SSL::SSLError => err
         warning("A SSL error has encountered: #{err}, verification will be disabled in next connection!")
-        @agent.http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+        @agent.verify_mode = OpenSSL::SSL::VERIFY_NONE
         @current_doc = @agent.get(@next_link, {ssl_verify_mode: OpenSSL::SSL::VERIFY_NONE})
       end
       download_current_page(folder, true)
@@ -198,7 +198,7 @@ module ExHDownloader
         @current_doc = @agent.get(@page_url)
       rescue OpenSSL::SSL::SSLError => err
         warning("A SSL error has encountered: #{err}, verification will be disabled in next connection!")
-        @agent.http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+        @agent.verify_mode = OpenSSL::SSL::VERIFY_NONE
         @current_doc = @agent.get(@page_url, {ssl_verify_mode: OpenSSL::SSL::VERIFY_NONE})
       end
       download_current_page(folder, false)

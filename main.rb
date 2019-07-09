@@ -100,6 +100,8 @@ loop do
   ExHDownloader.init_members()
   begin
     ExHDownloader.connect(url)
+  rescue SystemExit
+    exit_exh
   rescue Exception => err
     puts "A problem has occurred!\n"
     puts report_exception(err)
