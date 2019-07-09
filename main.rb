@@ -10,6 +10,7 @@ if Gem.win_platform?
 end
 
 require 'optparse'
+require 'io/console'
 require './downloader'
 
 Options = Struct.new(:name)
@@ -55,11 +56,19 @@ rescue OptionParser::InvalidOption => err
 end
 
 ExHDownloader.initialize()
-puts "Verbose: #{$verbose}"
 url = ARGV.first
-unless url
-  print "Please enter the page url: "
-  url = gets.chomp
+
+loop do
+  unless url
+    print "Please enter the page url: "
+    url = gets.chomp
+  end
+  puts "Link received: #{url}"
+  ExHDownloader.init_members()
+  ExHDownloader.connect(url)
+  url = nil
+  print "Press Q to quit, others to continue: "
+  ch = STDIN.getch
+  puts ch.upcase
+  break if ch.upcase == 'Q'
 end
-puts "Link received: #{url}"
-ExHDownloader.connect(url)

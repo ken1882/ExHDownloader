@@ -1,5 +1,6 @@
 Downloads/*
 FailLogs/*
+Release/*
 cookie.json
 !Downloads/.gitkeep 
 !FailLogs/.gitkeep 

@@ -15,7 +15,7 @@ module ExHDownloader
   FailLogLoction   = "FailLogs/"
   DownloadAsync = true
   DefaultTimeout = 10
-
+  
   module_function
   def initialize()
     @agent = Mechanize.new
@@ -28,18 +28,22 @@ module ExHDownloader
     end
 
     $mutex = Mutex.new
+    @timeout     = $timeout ? $timeout : DefaultTimeout
+    init_members()
+    puts "Engine initialized, download timeout: #{@timeout} seconds"
+  end
+
+  def init_members
     @current_doc = nil
     @next_link   = nil
     @page_cnt    = 0
     @total_cnt   = 0
-    @timeout     = $timeout ? $timeout : DefaultTimeout
     @redownloads = []
     @failed      = []
     @flag_terminte = false
     @total_time = 0
     @total_size = 0
     @succ_cnt = 0
-    puts "Engine initialized, download timeout: #{@timeout} seconds"
   end
 
   def eval_action(load_msg, &block)
@@ -97,21 +101,28 @@ module ExHDownloader
     @next_link = @current_doc.links_with(href: Regexp.new("#{@uid}-1")).first.uri
   end
 
+  def find_links
+    node = @current_doc.search("#i3").first
+    node = Nokogiri::HTML(node.children[0].to_s)
+    return [node.css("a").first["href"], node.css('img').first['src']]
+  end
+
   def start_download(folder)
     while !@current_doc.uri.to_s.include?(@next_link.to_s)
       @current_doc = @agent.get(@next_link)
-      node = @current_doc.search("#i3").first
-      node = Nokogiri::HTML(node.children[0].to_s)
-      @next_link = node.css("a").first["href"]
-      image = node.css('img').first['src']
-      path  = "#{folder}/#{format_image_filename(image, @page_cnt)}"
-      time_st = Time.now
-      download_image(image, path, DownloadAsync)
-      time_st = wait4download(time_st)
-      puts "Time taken: #{time_st.round(3)} sec"
-      @total_time += time_st
-      @page_cnt += 1
+      download_current_page(folder, true)
     end
+  end
+
+  def download_current_page(folder, redownload)
+    @next_link, image = *find_links
+    path  = "#{folder}/#{format_image_filename(image, @page_cnt)}"
+    time_st = Time.now
+    download_image(image, path, DownloadAsync)
+    time_st = wait4download(time_st, redownload)
+    puts "Time taken: #{time_st.round(3)} sec" if time_st < @timeout
+    @total_time += time_st
+    @page_cnt += 1
   end
 
   def wait4download(start_t, redownload=true)
@@ -122,7 +133,7 @@ module ExHDownloader
           puts "Download timeout (> #{@timeout} sec), killing thread"
           Thread.kill($worker)
           if redownload
-            @redownloads << $cur_download_url
+            @redownloads << @current_doc.uri.to_s
           else
             @failed << $cur_download_url
           end
@@ -164,14 +175,9 @@ module ExHDownloader
     puts "Redownload timeout images..."
     @page_cnt = 0
     @total_cnt = @redownloads.size
-    @redownloads.each do |img_url|
-      path = "#{folder}/#{format_image_filename(img_url, @page_cnt)}"
-      time_st = Time.now
-      download_image(img_url, path)
-      time_st = wait4download(time_st, false)
-      puts "Time taken: #{time_st.round(3)} sec"
-      @total_time += time_st
-      @page_cnt += 1
+    @redownloads.each do |page_url|
+      @current_doc = @agent.get(@page_url)
+      download_current_page(folder, false)
     end
   end
 
