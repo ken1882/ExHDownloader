@@ -1,3 +1,5 @@
+VERSION = "0.1.0"
+
 # fix windows getrlimit not implement bug
 if Gem.win_platform?
   module Process
@@ -7,6 +9,13 @@ if Gem.win_platform?
       [1024]
     end
   end
+end
+
+alias exit_exh exit
+def exit(*args, &block)
+  print "Press any key to quit"
+  ch = STDIN.getch
+  exit_exh(*args, &block)
 end
 
 require 'optparse'
@@ -31,6 +40,11 @@ class Parser
         exit
       end
       
+      opts.on('-v', '--version', 'Prints current version') do
+        puts VERSION
+        exit
+      end
+
       opts.on("--verbose", "Verbose output") do
         $verbose = true
       end
