@@ -30,7 +30,7 @@ class Parser
 
     opt_parser = OptionParser.new do |opts|
       opts.banner = %{
-        Usage: main.rb [URL] [Options]
+        Usage: main.rb/ExHDownloader.exe [URL] [Options]
         URL: Link of the upload
         Options:
       }.split(/[\r\n]+/).inject(''){|r, s| r + s.lstrip + "\n"}.chop
