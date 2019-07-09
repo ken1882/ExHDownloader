@@ -1,4 +1,4 @@
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 
 # fix windows getrlimit not implement bug
 if Gem.win_platform?
@@ -16,6 +16,21 @@ def exit(*args, &block)
   print "Press any key to quit"
   ch = STDIN.getch
   exit_exh(*args, &block)
+end
+
+def report_exception(error)
+  backtrace = error.backtrace
+  error_line = backtrace.first
+  backtrace[0] = ''
+  err_class = " (#{error.class})"
+  back_trace_txt = backtrace.join("\n\tfrom ")
+  error_txt = sprintf("%s %s %s %s %s %s",error_line, ": ", error.message, err_class, back_trace_txt, "\n" )
+  return error_txt
+end
+
+def warning(msg)
+  return if $no_warning
+  puts("[Warning]: #{msg}")
 end
 
 require 'optparse'
@@ -49,6 +64,10 @@ class Parser
         $verbose = true
       end
 
+      opts.on("-nw", "--no-warning", "Disable warnings") do
+        $no_warning = true
+      end
+
       opts.on("-tTIMEOUT", "--timeout=TIMEOUT", "Set async download timeout in seconds (default is 10)") do |t|
         $timeout = t.to_i
       end
@@ -79,7 +98,15 @@ loop do
   end
   puts "Link received: #{url}"
   ExHDownloader.init_members()
-  ExHDownloader.connect(url)
+  begin
+    ExHDownloader.connect(url)
+  rescue Exception => err
+    puts "A problem has occurred!\n"
+    puts report_exception(err)
+    puts "======================="
+    puts "Please submit the above info to https://github.com/ken1882/ExHDownloader/issues in order to resove bugs"
+    exit
+  end
   url = nil
   print "Press Q to quit, others to continue: "
   ch = STDIN.getch

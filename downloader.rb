@@ -60,7 +60,13 @@ module ExHDownloader
     @uid = $1
     puts "UID: #{@uid}"
     eval_action("Connecting to `#{link}`...") do
-      @current_doc = @agent.get(link)
+      begin
+        @current_doc = @agent.get(link)
+      rescue OpenSSL::SSL::SSLError => err
+        warning("A SSL error has encountered: #{err}, verification will be disabled in next connection!")
+        @current_doc = @agent.get(link, {ssl_verify_mode: OpenSSL::SLL::VERIFY_NONE})
+      end
+
       begin
         @current_doc.title
       rescue Exception
@@ -109,7 +115,12 @@ module ExHDownloader
 
   def start_download(folder)
     while !@current_doc.uri.to_s.include?(@next_link.to_s)
-      @current_doc = @agent.get(@next_link)
+      begin
+        @current_doc = @agent.get(@next_link)
+      rescue OpenSSL::SSL::SSLError => err
+        warning("A SSL error has encountered: #{err}, verification will be disabled in next connection!")
+        @current_doc = @agent.get(@next_link, {ssl_verify_mode: OpenSSL::SLL::VERIFY_NONE})
+      end
       download_current_page(folder, true)
     end
   end
@@ -176,7 +187,12 @@ module ExHDownloader
     @page_cnt = 0
     @total_cnt = @redownloads.size
     @redownloads.each do |page_url|
-      @current_doc = @agent.get(@page_url)
+      begin
+        @current_doc = @agent.get(@page_url)
+      rescue OpenSSL::SSL::SSLError => err
+        warning("A SSL error has encountered: #{err}, verification will be disabled in next connection!")
+        @current_doc = @agent.get(@page_url, {ssl_verify_mode: OpenSSL::SLL::VERIFY_NONE})
+      end
       download_current_page(folder, false)
     end
   end
