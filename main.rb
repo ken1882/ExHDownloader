@@ -64,7 +64,7 @@ class Parser
         $verbose = true
       end
 
-      opts.on("-nw", "--no-warning", "Disable warnings") do
+      opts.on("-w", "--wall", "Disable warnings") do
         $no_warning = true
       end
 
