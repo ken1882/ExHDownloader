@@ -1,0 +1,5 @@
+Downloads/*
+FailLogs/*
+cookie.json
+!Downloads/.gitkeep 
+!FailLogs/.gitkeep 
