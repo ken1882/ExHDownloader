@@ -9,7 +9,7 @@ module ExHDownloader
   attr_reader :uid, :page_cnt, :total_cnt
   attr_reader :next_link, :timeout, :redownloads
 
-  UID_regex = /\/g\/(\d+)/
+  UID_regex = /\/g\/(\d+)\/(.+)/
   TotalImg_regex = /Showing(.+)of (\d+) images/i
   DownloadLocation = "Downloads/"
   FailLogLoction   = "FailLogs/"
@@ -25,6 +25,10 @@ module ExHDownloader
     end
     @cookies.each do |ck|
       begin
+        if is_cookie_expired(ck)
+          puts "Your cookie is expired, please update `cookie.json`"
+          exit
+        end
         @agent.cookie_jar << Mechanize::Cookie.new(ck)
       rescue Exception
         puts "Error while loading cookie! Please make sure 'cookie.json' has correct info or update it"
@@ -51,6 +55,10 @@ module ExHDownloader
     @succ_cnt = 0
   end
 
+  def is_cookie_expired(ck)
+    return Time.now.to_f >= ck["expirationDate"]
+  end
+
   def eval_action(load_msg, &block)
     print(load_msg)
     yield block
@@ -68,7 +76,7 @@ module ExHDownloader
       begin
         @current_doc = @agent.get(link)
       rescue OpenSSL::SSL::SSLError => err
-        warning("A SSL error has encountered: #{err}, verification will be disabled in next connection!")
+        warning("\nA SSL error has encountered: #{err}, SSL verification will be disabled!\n")
         @agent.verify_mode = OpenSSL::SSL::VERIFY_NONE
         @current_doc = @agent.get(link, {ssl_verify_mode: OpenSSL::SSL::VERIFY_NONE})
       end
@@ -80,7 +88,7 @@ module ExHDownloader
         exit
       end
     end
-    
+    check_content_valid()
     folder = build_folder
     preprare_download
     start_download(folder)
@@ -91,6 +99,13 @@ module ExHDownloader
   def verify_link(link)
     return false unless link.downcase.start_with?("https://exhentai.org/g")
     return true
+  end
+
+  def check_content_valid()
+    return true if (@current_doc.title || '').include?("- ExHentai.org")
+    puts "The link you entered: `#{@current_doc.uri}` seems invalid, please check it."
+    puts "Abort program"
+    exit
   end
 
   def build_folder
@@ -105,6 +120,7 @@ module ExHDownloader
   end
 
   def preprare_download
+
     if @current_doc.search(".gpc").text.match(TotalImg_regex)
       @total_cnt = $2.to_i
       puts "Total images: #{@total_cnt}"
@@ -124,7 +140,7 @@ module ExHDownloader
       begin
         @current_doc = @agent.get(@next_link)
       rescue OpenSSL::SSL::SSLError => err
-        warning("A SSL error has encountered: #{err}, verification will be disabled in next connection!")
+        warning("\nA SSL error has encountered: #{err}, SSL verification will be disabled!\n")
         @agent.verify_mode = OpenSSL::SSL::VERIFY_NONE
         @current_doc = @agent.get(@next_link, {ssl_verify_mode: OpenSSL::SSL::VERIFY_NONE})
       end
@@ -197,7 +213,7 @@ module ExHDownloader
       begin
         @current_doc = @agent.get(@page_url)
       rescue OpenSSL::SSL::SSLError => err
-        warning("A SSL error has encountered: #{err}, verification will be disabled in next connection!")
+        warning("\nA SSL error has encountered: #{err}, SSL verification will be disabled!\n")
         @agent.verify_mode = OpenSSL::SSL::VERIFY_NONE
         @current_doc = @agent.get(@page_url, {ssl_verify_mode: OpenSSL::SSL::VERIFY_NONE})
       end
