@@ -24,7 +24,12 @@ module ExHDownloader
       @cookies = JSON.parse(content)
     end
     @cookies.each do |ck|
-      @agent.cookie_jar << Mechanize::Cookie.new(ck)
+      begin
+        @agent.cookie_jar << Mechanize::Cookie.new(ck)
+      rescue Exception
+        puts "Error while loading cookie! Please make sure 'cookie.json' has correct info or update it"
+        exit
+      end
     end
 
     $mutex = Mutex.new
