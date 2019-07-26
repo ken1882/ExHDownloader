@@ -2,6 +2,8 @@
 簡單的熊貓網下載器(表站也可以!)<br>
 Simple CLI tool for downloading the thing you want (Also works for E-Hentai)
 
+For smaller gallery, recommend using: https://github.com/ccloli/E-Hentai-Downloader instead.
+若要下載的圖片數量較少，建議使用上面連結的擴充工具下載
 
 ## 下載 | Download
 https://github.com/ken1882/ExHDownloader/releases
