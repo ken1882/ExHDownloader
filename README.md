@@ -30,4 +30,4 @@ For EHDownloader, just open it up and enter the link.
 example:<br>
 `ExHDownloader.exe https://exhentai.org/g/1029646/d6e75efcfc/`<br>
 `ExHDownloader.exe https://exhentai.org/g/1029646/d6e75efcfc/ -t 20` // set timeout to 20 seconds<br>
-`EHDownloader.exe https://exhentai.org/g/1029646/d6e75efcfc/`<br>
+`EHDownloader.exe https://e-hentai.org/g/1435381/ec76e00b09/`<br>
