@@ -4,7 +4,7 @@ require 'mechanize'
 require 'open-uri'
 require 'json'
 
-module EHDownloader
+module ExHDownloader
   
   attr_reader :agent, :cookies
   attr_reader :current_doc
@@ -26,18 +26,18 @@ module EHDownloader
       content = file.read
       @cookies = JSON.parse(content)
     end
-    # @cookies.each do |ck|
-    #   begin
-    #     if is_cookie_expired(ck)
-    #       puts "Your cookie is expired, please update `cookie.json`"
-    #       exit
-    #     end
-    #     @agent.cookie_jar << Mechanize::Cookie.new(ck)
-    #   rescue Exception
-    #     puts "Error while loading cookie! Please make sure 'cookie.json' has correct info or update it"
-    #     exit
-    #   end
-    # end
+    @cookies.each do |ck|
+      begin
+        if is_cookie_expired(ck)
+          puts "Your cookie is expired, please update `cookie.json`"
+          exit
+        end
+        @agent.cookie_jar << Mechanize::Cookie.new(ck)
+      rescue Exception
+        puts "Error while loading cookie! Please make sure 'cookie.json' has correct info or update it"
+        exit
+      end
+    end
 
     $mutex = Mutex.new
     @timeout     = $timeout ? $timeout : DefaultTimeout
@@ -114,19 +114,19 @@ module EHDownloader
   end
 
   def verify_link(link)
-    return false unless link.downcase.start_with?("https://e-hentai.org/g")
+    return false unless link.downcase.start_with?("https://exhentai.org/g")
     return true
   end
 
   def check_content_valid()
-    return true if (@current_doc.title || '').include?("- E-Hentai")
+    return true if (@current_doc.title || '').include?("- ExHentai.org")
     puts "The link you entered: `#{@current_doc.uri}` seems invalid, please check it."
     puts "Abort program"
     exit
   end
 
   def build_folder
-    title = DownloadLocation + @current_doc.title.gsub(' - E-Hentai Galleries','').tr('?*:><|\\/\"','')
+    title = DownloadLocation + @current_doc.title.gsub(' - ExHentai.org','').tr('?*:><|\\/\"','')
 
     eval_action("Build folder `#{title}``...") do
       unless File.exist?(title)
