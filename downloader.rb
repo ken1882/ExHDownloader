@@ -1,7 +1,7 @@
 require 'mechanize'
-require 'agent'
 require 'open-uri'
 require 'json'
+require './agent'
 
 module ExHDownloader
   
@@ -18,7 +18,6 @@ module ExHDownloader
   TotalImg_regex = /Showing(.+)of (\d+) images/i
   DownloadLocation = "Downloads/"
   FailLogLoction   = "FailLogs/"
-  DownloadAsync = true
   DefaultTimeout = 10
   DefaultRetry   = 3
   DefaultAgentCnt = 2
@@ -27,9 +26,9 @@ module ExHDownloader
   def initialize()
     @agents = []
     agent_cnt = $agent_cnt ? $agent_cnt : DefaultAgentCnt
+    agent_cnt = 1 unless DownloadAsync
     agent_cnt.times do |i|
-      agent = Mechanize.new
-      agent.define_singleton_method(:index){return i}
+      agent = Agent.new
       @agents << agent
     end
 
@@ -37,6 +36,7 @@ module ExHDownloader
       content = file.read
       @cookies = JSON.parse(content)
     end
+
     @cookies.each do |ck|
       begin
         if is_cookie_expired(ck)

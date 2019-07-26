@@ -1,0 +1,2 @@
+class Agent < Mechanize
+end
