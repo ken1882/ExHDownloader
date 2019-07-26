@@ -73,7 +73,7 @@ module ExHDownloader
     rescue OpenSSL::SSL::SSLError => err
       warning("\nA SSL error has encountered: #{err}, SSL verification will be disabled!\n")
       @agent.verify_mode = OpenSSL::SSL::VERIFY_NONE
-      return @agent.get(link, {ssl_verify_mode: OpenSSL::SSL::VERIFY_NONE})
+      return @agent.get(url, {ssl_verify_mode: OpenSSL::SSL::VERIFY_NONE})
     rescue Mechanize::ResponseCodeError => err
       warning("\nReceived response code #{err.response_code}, retrying...(depth=#{depth})")
       return fetch(url, depth + 1) if depth < @retry_max
