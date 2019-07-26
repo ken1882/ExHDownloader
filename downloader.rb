@@ -22,10 +22,10 @@ module EHDownloader
   module_function
   def initialize()
     @agent = Mechanize.new
-    File.open('cookie.json', 'r') do |file|
-      content = file.read
-      @cookies = JSON.parse(content)
-    end
+    # File.open('cookie.json', 'r') do |file|
+    #   content = file.read
+    #   @cookies = JSON.parse(content)
+    # end
     # @cookies.each do |ck|
     #   begin
     #     if is_cookie_expired(ck)
