@@ -1,4 +1,4 @@
-VERSION = "0.1.2"
+VERSION = "0.1.3"
 
 # fix windows getrlimit not implement bug
 if Gem.win_platform?
@@ -70,6 +70,10 @@ class Parser
 
       opts.on("-tTIMEOUT", "--timeout=TIMEOUT", "Set async download timeout in seconds (default is 10)") do |t|
         $timeout = t.to_i
+      end
+
+      opts.on("--retry-max=RETRYMAX", "Set maximum connect retry times if connection failed(default is 5)") do |r|
+        $retry_max = r.to_i
       end
     end
 
