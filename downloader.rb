@@ -1,13 +1,18 @@
 require 'mechanize'
+require 'agent'
 require 'open-uri'
 require 'json'
 
 module ExHDownloader
   
-  attr_reader :agent, :cookies
-  attr_reader :current_doc
-  attr_reader :uid, :page_cnt, :total_cnt
-  attr_reader :next_link, :timeout, :redownloads
+  attr_reader :agents               # The crawler
+  attr_reader :cookies              # Even need explain?
+  attr_reader :current_doc          # Current webpage
+  attr_reader :uid                  #
+  attr_reader :page_cnt, :total_cnt #
+  attr_reader :next_link            #
+  attr_reader :timeout, :retry_max  #
+  attr_reader :redownloads          #
 
   UID_regex = /\/g\/(\d+)\/(.+)/
   TotalImg_regex = /Showing(.+)of (\d+) images/i
@@ -15,10 +20,19 @@ module ExHDownloader
   FailLogLoction   = "FailLogs/"
   DownloadAsync = true
   DefaultTimeout = 10
-  
+  DefaultRetry   = 3
+  DefaultAgentCnt = 2
+
   module_function
   def initialize()
-    @agent = Mechanize.new
+    @agents = []
+    agent_cnt = $agent_cnt ? $agent_cnt : DefaultAgentCnt
+    agent_cnt.times do |i|
+      agent = Mechanize.new
+      agent.define_singleton_method(:index){return i}
+      @agents << agent
+    end
+
     File.open('cookie.json', 'r') do |file|
       content = file.read
       @cookies = JSON.parse(content)
@@ -29,15 +43,16 @@ module ExHDownloader
           puts "Your cookie is expired, please update `cookie.json`"
           exit
         end
-        @agent.cookie_jar << Mechanize::Cookie.new(ck)
+        @agents.each{|agent| agent.cookie_jar << Mechanize::Cookie.new(ck)}
       rescue Exception
         puts "Error while loading cookie! Please make sure 'cookie.json' has correct info or update it"
         exit
       end
     end
 
-    $mutex = Mutex.new
-    @timeout     = $timeout ? $timeout : DefaultTimeout
+    $mutex     = Mutex.new
+    @timeout   = $timeout   ? $timeout   : DefaultTimeout
+    @retry_max = $retry_max ? $retry_max : DefaultRetry
     init_members()
     puts "Engine initialized, download timeout: #{@timeout} seconds"
   end
@@ -65,6 +80,23 @@ module ExHDownloader
     puts ("succeed")
   end
 
+  def fetch(agent, url, depth=0)
+    begin
+      return agent.get(url)
+    rescue OpenSSL::SSL::SSLError => err
+      warning("\nA SSL error has encountered: #{err}, SSL verification will be disabled!\n")
+      agent.verify_mode = OpenSSL::SSL::VERIFY_NONE
+      return agent.get(link, {ssl_verify_mode: OpenSSL::SSL::VERIFY_NONE})
+    rescue Mechanize::ResponseCodeError => err
+      warning("\nReceived response code #{err.response_code}, retrying...(depth=#{depth})")
+      return fetch(url, depth + 1) if depth < @retry_max
+      puts "Retry times > #{@retry_max}, abort"
+      puts "======================="
+      puts report_exception(err)
+      exit
+    end
+  end
+
   def connect(link)
     unless verify_link(link) && link.match(UID_regex)
       puts "Invalid link!"
@@ -73,13 +105,7 @@ module ExHDownloader
     @uid = $1
     puts "UID: #{@uid}"
     eval_action("Connecting to `#{link}`...") do
-      begin
-        @current_doc = @agent.get(link)
-      rescue OpenSSL::SSL::SSLError => err
-        warning("\nA SSL error has encountered: #{err}, SSL verification will be disabled!\n")
-        @agent.verify_mode = OpenSSL::SSL::VERIFY_NONE
-        @current_doc = @agent.get(link, {ssl_verify_mode: OpenSSL::SSL::VERIFY_NONE})
-      end
+      @current_doc = fetch(link)
 
       begin
         @current_doc.title
@@ -137,13 +163,7 @@ module ExHDownloader
 
   def start_download(folder)
     while !@current_doc.uri.to_s.include?(@next_link.to_s)
-      begin
-        @current_doc = @agent.get(@next_link)
-      rescue OpenSSL::SSL::SSLError => err
-        warning("\nA SSL error has encountered: #{err}, SSL verification will be disabled!\n")
-        @agent.verify_mode = OpenSSL::SSL::VERIFY_NONE
-        @current_doc = @agent.get(@next_link, {ssl_verify_mode: OpenSSL::SSL::VERIFY_NONE})
-      end
+      @current_doc = fetch(@next_link)
       download_current_page(folder, true)
     end
   end
@@ -210,13 +230,7 @@ module ExHDownloader
     @page_cnt = 0
     @total_cnt = @redownloads.size
     @redownloads.each do |page_url|
-      begin
-        @current_doc = @agent.get(@page_url)
-      rescue OpenSSL::SSL::SSLError => err
-        warning("\nA SSL error has encountered: #{err}, SSL verification will be disabled!\n")
-        @agent.verify_mode = OpenSSL::SSL::VERIFY_NONE
-        @current_doc = @agent.get(@page_url, {ssl_verify_mode: OpenSSL::SSL::VERIFY_NONE})
-      end
+      @current_doc = fetch(@page_url)
       download_current_page(folder, false)
     end
   end

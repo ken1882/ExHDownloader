@@ -11,6 +11,7 @@ if Gem.win_platform?
   end
 end
 
+# Alias exit method to prevent instant flash crash
 alias exit_exh exit
 def exit(*args, &block)
   print "Press any key to quit"
@@ -18,6 +19,7 @@ def exit(*args, &block)
   exit_exh(*args, &block)
 end
 
+# Show bug traces
 def report_exception(error)
   backtrace = error.backtrace
   error_line = backtrace.first
