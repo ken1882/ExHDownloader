@@ -7,7 +7,7 @@ require 'json'
 module ExHDownloader
   
   attr_reader :agent, :cookies
-  attr_reader :current_doc
+  attr_reader :parent_doc
   attr_reader :uid, :page_cnt, :total_cnt
   attr_reader :next_link, :timeout, :redownloads, :retry_max
 
@@ -21,7 +21,8 @@ module ExHDownloader
 
   module_function
   def initialize()
-    @agent = Mechanize.new
+    @agents = [Agent.new(0), Agent.new(1)]
+
     File.open('cookie.json', 'r') do |file|
       content = file.read
       @cookies = JSON.parse(content)
@@ -32,12 +33,13 @@ module ExHDownloader
           puts "Your cookie is expired, please update `cookie.json`"
           exit
         end
-        @agent.cookie_jar << Mechanize::Cookie.new(ck)
+        @agents.first.cookie_jar << Mechanize::Cookie.new(ck)
       rescue Exception
         puts "Error while loading cookie! Please make sure 'cookie.json' has correct info or update it"
         exit
       end
     end
+    @agents.each{|ag| ag.cookie_jar = @agents.first.cookie_jar}
 
     $mutex = Mutex.new
     @timeout     = $timeout ? $timeout : DefaultTimeout
@@ -46,18 +48,11 @@ module ExHDownloader
     puts "Engine initialized, download timeout: #{@timeout} seconds"
   end
 
+  def retry_max; @retry_max; end
+  def timeout; @timeout; end
+
   def init_members
-    @current_doc = nil
-    @next_link   = nil
-    @page_cnt    = 0
-    @total_cnt   = 0
-    @redownloads = []
-    @failed      = []
     @flag_terminte = false
-    @total_time = 0
-    @total_size = 0
-    @succ_cnt = 0
-    @redownload_index = []
   end
 
   def is_cookie_expired(ck)
@@ -70,24 +65,6 @@ module ExHDownloader
     puts ("succeed")
   end
 
-  def fetch(url, depth=0)
-    begin
-      return @agent.get(url)
-    rescue OpenSSL::SSL::SSLError => err
-      warning("\nA SSL error has encountered: #{err}, SSL verification will be disabled!\n")
-      @agent.verify_mode = OpenSSL::SSL::VERIFY_NONE
-      return @agent.get(url, {ssl_verify_mode: OpenSSL::SSL::VERIFY_NONE})
-    rescue Mechanize::ResponseCodeError => err
-      warning("\nReceived response code #{err.response_code}, retrying...(depth=#{depth})")
-      sleep(0.1)
-      return fetch(url, depth + 1) if depth < @retry_max
-      puts "Retry times > #{@retry_max}, abort"
-      puts "======================="
-      puts report_exception(err)
-      exit
-    end
-  end
-
   def connect(link)
     unless verify_link(link) && link.match(UID_regex)
       puts "Invalid link!"
@@ -96,10 +73,10 @@ module ExHDownloader
     @uid = $1
     puts "UID: #{@uid}"
     eval_action("Connecting to `#{link}`...") do
-      @current_doc = fetch(link)
+      @parent_doc = fetch(link)
 
       begin
-        @current_doc.title
+        @parent_doc.title
       rescue Exception
         puts("failed\nGot a sad panda :( please check your 'cookie.json' has correct info or update it")
         exit
@@ -109,8 +86,6 @@ module ExHDownloader
     folder = build_folder
     preprare_download
     start_download(folder)
-    redownload_images(folder) if @redownloads.size > 0
-    summerize(folder)
   end
 
   def verify_link(link)
@@ -119,14 +94,14 @@ module ExHDownloader
   end
 
   def check_content_valid()
-    return true if (@current_doc.title || '').include?("- ExHentai.org")
-    puts "The link you entered: `#{@current_doc.uri}` seems invalid, please check it."
+    return true if (@parent_doc.title || '').include?("- ExHentai.org")
+    puts "The link you entered: `#{@parent_doc.uri}` seems invalid, please check it."
     puts "Abort program"
     exit
   end
 
   def build_folder
-    title = DownloadLocation + @current_doc.title.gsub(' - ExHentai.org','').tr('?*:><|\\/\"','')
+    title = DownloadLocation + @parent_doc.title.gsub(' - ExHentai.org','').tr('?*:><|\\/\"','')
 
     eval_action("Build folder `#{title}``...") do
       unless File.exist?(title)
@@ -137,24 +112,23 @@ module ExHDownloader
   end
 
   def preprare_download
-
-    if @current_doc.search(".gpc").text.match(TotalImg_regex)
+    if @parent_doc.search(".gpc").text.match(TotalImg_regex)
       @total_cnt = $2.to_i
       puts "Total images: #{@total_cnt}"
     end
     puts "Preparing download"
-    @next_link = @current_doc.links_with(href: Regexp.new("#{@uid}-1")).first.uri
+    @agents.each{|ag| ag.setup(@parent_doc, @total_cnt)}
   end
 
   def find_links
-    node = @current_doc.search("#i3").first
+    node = @parent_doc.search("#i3").first
     node = Nokogiri::HTML(node.children[0].to_s)
     return [node.css("a").first["href"], node.css('img').first['src']]
   end
 
   def start_download(folder)
-    while !@current_doc.uri.to_s.include?(@next_link.to_s)
-      @current_doc = fetch(@next_link)
+    while !@parent_doc.uri.to_s.include?(@next_link.to_s)
+      @parent_doc = fetch(@next_link)
       download_current_page(folder, false)
     end
   end
@@ -179,7 +153,7 @@ module ExHDownloader
           puts "Download timeout (> #{@timeout} sec), killing thread"
           Thread.kill($worker)
           if !is_redownloading
-            @redownloads << @current_doc.uri.dup.to_s
+            @redownloads << @parent_doc.uri.dup.to_s
             @redownload_index << @page_cnt
           else
             @failed << $cur_download_url
@@ -234,7 +208,7 @@ module ExHDownloader
     @page_cnt = 0
     @total_cnt = @redownloads.size
     @redownloads.each do |link|
-      @current_doc = fetch(link)
+      @parent_doc = fetch(link)
       download_current_page(folder, true)
     end
   end

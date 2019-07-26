@@ -2,7 +2,7 @@ Downloads/*
 FailLogs/*
 Release/*
 cookie.json
-_release.rb
+_release*.rb
 *.exe
 !Downloads/.gitkeep 
 !FailLogs/.gitkeep 
