@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 require 'mechanize'
 require 'open-uri'
 require 'json'
@@ -28,8 +30,7 @@ module ExHDownloader
     agent_cnt = $agent_cnt ? $agent_cnt : DefaultAgentCnt
     agent_cnt = 1 unless DownloadAsync
     agent_cnt.times do |i|
-      agent = Agent.new
-      @agents << agent
+      @agents << Agent.new(i)
     end
 
     File.open('cookie.json', 'r') do |file|
@@ -85,6 +86,7 @@ module ExHDownloader
       return agent.get(url)
     rescue OpenSSL::SSL::SSLError => err
       warning("\nA SSL error has encountered: #{err}, SSL verification will be disabled!\n")
+      OpenSSL::SSL::VERIFY_PEER = OpenSSL::SSL::VERIFY_NONE
       agent.verify_mode = OpenSSL::SSL::VERIFY_NONE
       return agent.get(link, {ssl_verify_mode: OpenSSL::SSL::VERIFY_NONE})
     rescue Mechanize::ResponseCodeError => err

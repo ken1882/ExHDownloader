@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 VERSION = "0.1.2"
 
 # fix windows getrlimit not implement bug
