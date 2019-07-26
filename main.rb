@@ -1,4 +1,6 @@
-VERSION = "0.1.3"
+# -*- coding: utf-8 -*-
+
+VERSION = "0.1.3.2"
 
 # fix windows getrlimit not implement bug
 if Gem.win_platform?

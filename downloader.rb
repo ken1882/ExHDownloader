@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 require 'mechanize'
 require 'open-uri'
 require 'json'
@@ -55,6 +57,7 @@ module ExHDownloader
     @total_time = 0
     @total_size = 0
     @succ_cnt = 0
+    @redownload_index = []
   end
 
   def is_cookie_expired(ck)
@@ -76,6 +79,7 @@ module ExHDownloader
       return @agent.get(url, {ssl_verify_mode: OpenSSL::SSL::VERIFY_NONE})
     rescue Mechanize::ResponseCodeError => err
       warning("\nReceived response code #{err.response_code}, retrying...(depth=#{depth})")
+      sleep(0.1)
       return fetch(url, depth + 1) if depth < @retry_max
       puts "Retry times > #{@retry_max}, abort"
       puts "======================="
@@ -151,30 +155,32 @@ module ExHDownloader
   def start_download(folder)
     while !@current_doc.uri.to_s.include?(@next_link.to_s)
       @current_doc = fetch(@next_link)
-      download_current_page(folder, true)
+      download_current_page(folder, false)
     end
   end
 
-  def download_current_page(folder, redownload)
+  def download_current_page(folder, redownloading)
     @next_link, image = *find_links
-    path  = "#{folder}/#{format_image_filename(image, @page_cnt)}"
+    file_index = redownloading ? @redownload_index[@page_cnt] : @page_cnt
+    path  = "#{folder}/#{format_image_filename(image, file_index)}"
     time_st = Time.now
     download_image(image, path, DownloadAsync)
-    time_st = wait4download(time_st, redownload)
+    time_st = wait4download(time_st, redownloading)
     puts "Time taken: #{time_st.round(3)} sec" if time_st < @timeout
     @total_time += time_st
     @page_cnt += 1
   end
 
-  def wait4download(start_t, redownload=true)
+  def wait4download(start_t, is_redownloading=false)
     if DownloadAsync
       while !$th_ok
         sleep(0.1)
         if (Time.now - start_t).to_f > @timeout
           puts "Download timeout (> #{@timeout} sec), killing thread"
           Thread.kill($worker)
-          if redownload
-            @redownloads << @current_doc.uri.to_s
+          if !is_redownloading
+            @redownloads << @current_doc.uri.dup.to_s
+            @redownload_index << @page_cnt
           else
             @failed << $cur_download_url
           end
@@ -202,23 +208,34 @@ module ExHDownloader
   def _download_image(img_url, path)
     verbose = $verbose ? "(#{img_url} => #{path})\n-----------------" : ''
     eval_action("Downloading #{@page_cnt+1}/#{@total_cnt > 0 ? @total_cnt : '???'}#{verbose}...") do
-      open(img_url) do |img|
-        File.open(path, 'wb') do |file|
-          buffer = img.read
-          file.puts(buffer)
-          @total_size += buffer.size
+      begin
+        open(img_url) do |img|
+          File.open(path, 'wb') do |file|
+            buffer = img.read
+            file.puts(buffer)
+            @total_size += buffer.size
+          end
         end
-      end
-    end
+      rescue OpenSSL::SSL::SSLError => err
+        warning("\nA SSL error has encountered: #{err}, SSL verification will be disabled!\n")
+        open(img_url, {ssl_verify_mode: OpenSSL::SSL::VERIFY_NONE}) do |img|
+          File.open(path, 'wb') do |file|
+            buffer = img.read
+            file.puts(buffer)
+            @total_size += buffer.size
+          end
+        end
+      end # begin
+    end # eval_action
   end
 
   def redownload_images(folder)
     puts "Redownload timeout images..."
     @page_cnt = 0
     @total_cnt = @redownloads.size
-    @redownloads.each do |page_url|
-      @current_doc = fetch(@page_url)
-      download_current_page(folder, false)
+    @redownloads.each do |link|
+      @current_doc = fetch(link)
+      download_current_page(folder, true)
     end
   end
 
